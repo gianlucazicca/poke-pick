@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {Button} from "~/components/ui/button";
+
 const {$pokeApiClient} = useNuxtApp();
 
 const {data: pokemon, error} = useAsyncData(
