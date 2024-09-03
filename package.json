@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@nuxt/eslint": "^0.5.3",
+    "@nuxt/fonts": "^0.7.2",
     "axios": "^1.7.5",
     "axios-cache-interceptor": "^1.5.3",
     "class-variance-authority": "^0.7.0",
