@@ -1,5 +1,5 @@
 <template>
-  <img src="public/images/PokePick-29-08-2024.png" alt="PokePick logo" class="w-full min-w-[360px] logo-animation">
+  <img src="public/images/PokePick-29-08-2024.png" alt="PokePick logo" class="w-full logo-animation">
 </template>
 
 <style scoped>

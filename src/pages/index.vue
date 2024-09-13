@@ -1,49 +1,117 @@
 <script setup lang="ts">
-import type {Pokemon} from "pokenode-ts";
-import type {TeamMember} from "~/types/team";
+import {ref, computed} from 'vue'
+import type {Pokemon, Type} from "pokenode-ts"
+import {useGame} from "~/composables/useGame"
+import {usePokeApi} from "~/composables/usePokeApi"
 
-const starterIds = [1, 4, 7];
-const starterArray = ref<Pokemon[]>([])
-const started = ref<boolean>(false);
-const {$pokeApiClient} = useNuxtApp();
+const {state, init, start, addToTeam} = useGame()
+const pokeApi = usePokeApi()
+const optionArray = ref<Pokemon[]>([])
+const typeArray = ref<Type[]>([])
+const randomArray = ref<Pokemon[]>([])
 
-const promises = starterIds.map(async (id: number) => {
-  const {data} = useAsyncData(
-      `${id}`,
-      async () => await $pokeApiClient.pokemon.getPokemonById(id)
-  );
+const fetchPokemonById = async (id: number) => {
+  const {data} = await useAsyncData(
+      `pokemon-${id}`,
+      () => pokeApi.pokemon.getPokemonById(id)
+  )
   return data.value as Pokemon
-})
+}
 
-starterArray.value = await Promise.all(promises);
-const team = ref<TeamMember[]>([
-  {order: 1, pokemon: null,},
-  {order: 2, pokemon: null,},
-  {order: 3, pokemon: null,},
-  {order: 4, pokemon: null,},
-  {order: 5, pokemon: null,},
-])
-const startGame = () => started.value = true;
-const addToTeam = (p: Pokemon) => {
-  const t = team.value.filter(p => p.pokemon !== null)
-  if (t.length < 6) team.value[t.length].pokemon = p;
-};
+const fetchTypeByName = async (name: string) => {
+  const {data} = await useAsyncData(
+      `type-${name}`,
+      () => pokeApi.pokemon.getTypeByName(name)
+  )
+  return data.value as Type
+}
+
+const getStarter = async () => {
+  optionArray.value = await Promise.all(state.value.starterIds.map(fetchPokemonById))
+}
+
+const getTypes = async () => {
+  typeArray.value = await Promise.all(state.value.types.map(fetchTypeByName))
+}
+
+const getRandomPokemon = async (type: Type): Promise<Pokemon> => {
+  const randomPokemon = type.pokemon[Math.floor(Math.random() * type.pokemon.length)]
+  return await $fetch(randomPokemon.pokemon.url)
+}
+
+const randomPokemonPerType = async () => {
+  const pokemonPromises = typeArray.value.map(async (type) => {
+    let rndP: Pokemon
+    do {
+      rndP = await getRandomPokemon(type)
+    } while (rndP.sprites.front_default === null)
+    return rndP
+  })
+  randomArray.value = await Promise.all(pokemonPromises)
+  return randomArray.value
+}
+
+const npcPokemonSelection = async (): Promise<Pokemon> => {
+  const npcPokemonOptions = await randomPokemonPerType()
+  return npcPokemonOptions[Math.floor(Math.random() * 3)]
+}
+
+const initializeGame = async () => {
+  init()
+  state.value.loading = true
+  await Promise.all([getStarter(), getTypes()])
+  state.value.loading = false
+}
+
+await initializeGame()
+
+const pokemonPickedCount = computed(() => state.value.team.filter(p => p.pokemon !== null).length)
+
+const handleAddToTeam = async () => {
+  const [npcPokemon, newOptions] = await Promise.all([
+    npcPokemonSelection(),
+    randomPokemonPerType()
+  ])
+  addToTeam(npcPokemon, 'npc')
+  addToTeam(state.value.selectedPokemon)
+  optionArray.value = newOptions
+}
 </script>
+
 <template>
-  <div class="flex-grow flex flex-col items-center w-full">
-    <div class="flex-grow-0 -ml-5">
-      <Logo class="max-w-80 self-center"/>
-    </div>
-    <div class="flex-grow flex-wrap content-center">
-      <Selection v-if="started" :pokemons="starterArray" @selection-accepted="addToTeam"/>
-    </div>
-    <div v-if="started" class="flex max-w-screen-lg w-full justify-center px-6 pb-6">
-      <Team :team="team"/>
-    </div>
-    <div v-if="!started" class="flex-grow content-center">
-      <UiButton class="font-pixel" @click="startGame">
+  <div class="grid max-w-full grid-cols-3 md:grid-cols-6 grid-h content-center px-4 gap-4"
+       :class="state.running ? 'grid-rows-3' : 'grid-rows-1'">
+    <div class="col-span-full row-span-1 content-center m-auto">
+      <Logo class="max-w-72"/>
+      <UiButton v-if="!state.running" class="font-pixel w-full mt-5" @click="start()">
         <span class="animate-pulse duration-700">Start Game</span>
+      </UiButton>
+    </div>
+    <div v-if="state.running" class="col-span-full row-span-1 content-center m-auto">
+      <Selection :pokemons="optionArray"/>
+    </div>
+    <div v-if="state.running" class="col-span-full flex items-center">
+      <Team :team="state.team"/>
+    </div>
+    <div v-if="state.running" class="col-span-full flex items-center">
+      <Team :team="state.npcTeam"/>
+    </div>
+    <div class="col-span-full row-span-1 content-center">
+      <UiButton v-if="state.running && pokemonPickedCount < 6"
+                class="font-pixel group w-full"
+                :disabled="!state.selectedPokemon"
+                @click="handleAddToTeam">
+        <span class="group-enabled:animate-pulse duration-700">Next ></span>
+      </UiButton>
+      <UiButton v-else-if="state.running" class="font-pixel group w-full">
+        <span class="group-enabled:animate-pulse duration-700">Start</span>
       </UiButton>
     </div>
   </div>
 </template>
+
+<style scoped>
+.grid-h {
+  height: calc(100vh - 50px);
+}
+</style>
