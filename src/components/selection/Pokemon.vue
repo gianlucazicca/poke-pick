@@ -6,8 +6,7 @@ const props = defineProps<PokemonSelectionProps>();
 defineEmits(["selection"]);
 
 const pokemonType = computed(() => {
-  if (props.pokemon) return props.pokemon?.types[0].type.name
-  return ''
+  return props.pokemon?.types.find(t => ['grass', 'fire', 'water'].includes(t.type.name))?.type?.name || '';
 });
 const styles = [
   'relative',
@@ -31,6 +30,7 @@ const styles = [
   'before:-translate-x-1/2',
   'before:transition-all',
   'before:duration-500',
+  'before:z-50'
 ];
 
 const getStyles = computed(() => {
@@ -57,9 +57,10 @@ const getStyles = computed(() => {
 <template>
   <button
       :data-before-type="pokemonType"
-      :class="[getStyles, props.isSelected ? 'before:opacity-100 before:top-3/4' : 'before:opacity-0 hover:before:opacity-100 before:top-full hover:before:top-3/4']"
-      @click="() => $emit('selection',props.pokemon.id)">
-    <img :src="props.pokemon?.sprites?.front_default as string" class="size-40 mx-2 md:mx-4"
+      class="w-full aspect-square"
+      :class="[getStyles, props.isSelected ? 'before:opacity-100 before:top-20' : 'before:opacity-0 hover:before:opacity-100 before:top-full hover:before:top-1/2']"
+      @click="() => $emit('selection',props.pokemon)">
+    <img :src="props.pokemon?.sprites?.front_default as string" class="size-full md:scale-125"
          :class="{'selectedPokemon': props.isSelected}"/>
   </button>
 </template>
@@ -71,19 +72,19 @@ const getStyles = computed(() => {
 
 @keyframes wiggle {
   0% {
-    transform: rotate(0deg);
+    transform: rotate(0deg) scale(1.25);
   }
   25% {
-    transform: rotate(15deg);
+    transform: rotate(15deg) scale(1.20);
   }
   50% {
-    transform: rotate(-15deg);
+    transform: rotate(-15deg) scale(1.25);
   }
   75% {
-    transform: rotate(15deg);
+    transform: rotate(15deg) scale(1.20);
   }
   100% {
-    transform: rotate(0deg);
+    transform: rotate(0deg) scale(1.25);
   }
 }
 </style>
